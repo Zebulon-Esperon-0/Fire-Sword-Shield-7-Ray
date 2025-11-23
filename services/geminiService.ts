@@ -6,11 +6,15 @@ export const getAiClient = (key?: string) => new GoogleGenAI({ apiKey: key || ap
 
 // Helper for Key Selection (Veo/Pro Image)
 export const ensurePaidKey = async (): Promise<string> => {
-  if ((window as any).aistudio) {
-    if (!await (window as any).aistudio.hasSelectedApiKey()) {
-      await (window as any).aistudio.openSelectKey();
+  if (typeof window !== 'undefined' && (window as any).aistudio) {
+    try {
+        if (!await (window as any).aistudio.hasSelectedApiKey()) {
+            await (window as any).aistudio.openSelectKey();
+        }
+        return process.env.API_KEY || apiKey;
+    } catch (e) {
+        console.warn("AI Studio bridge failed, falling back to env key", e);
     }
-    return process.env.API_KEY || '';
   }
   return apiKey;
 };
@@ -46,8 +50,6 @@ export const generateAIResponse = async (
   if (config.tools?.includes('maps')) {
       model = 'gemini-2.5-flash';
       tools.push({ googleMaps: {} });
-      // In a real app, we would get navigator.geolocation here
-      // genConfig.toolConfig = { retrievalConfig: { latLng: { latitude: ... } } }
   }
 
   // If analyzing complex media, use Pro
@@ -89,7 +91,7 @@ export const generateAIResponse = async (
     return text || "No response generated.";
   } catch (e) {
     console.error("Gemini Error", e);
-    return "I encountered an error consulting the archives.";
+    return "I encountered an error consulting the archives. Please try again.";
   }
 };
 
@@ -201,7 +203,7 @@ export const transcribeAudio = async (audioBase64: string): Promise<string> => {
         model: 'gemini-2.5-flash',
         contents: {
             parts: [
-                { inlineData: { mimeType: 'audio/mp3', data: audioBase64 } }, // Assuming uploaded file format or generic audio
+                { inlineData: { mimeType: 'audio/mp3', data: audioBase64 } },
                 { text: "Transcribe this audio exactly." }
             ]
         }
@@ -248,7 +250,7 @@ export const generateAIStream = async (prompt: string, onChunk: (text: string) =
     try {
         const response = await ai.models.generateContentStream({
             model: 'gemini-2.5-flash-lite', 
-            contents: `You are a helpful assistant in a gaming community app. ${prompt}`,
+            contents: `You are a helpful assistant in a developer community app. ${prompt}`,
         });
 
         for await (const chunk of response) {
